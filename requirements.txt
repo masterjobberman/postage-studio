@@ -10,3 +10,4 @@ winrt-Windows.Storage.Streams==2.3.0
 winrt-Windows.Globalization==2.3.0
 winrt-Windows.Foundation==2.3.0
 winrt-Windows.Foundation.Collections==2.3.0
+qrcode==8.2

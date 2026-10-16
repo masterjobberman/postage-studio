@@ -8,7 +8,7 @@ import urllib.request
 destination = Path('licenses')
 destination.mkdir(exist_ok=True)
 names = ['PyMuPDF', 'PySide6', 'PySide6-Essentials', 'PySide6-Addons',
-         'shiboken6', 'opencv-python-headless', 'numpy', 'Pillow', 'pyinstaller']
+         'shiboken6', 'opencv-python-headless', 'numpy', 'Pillow', 'pyinstaller', 'qrcode', 'colorama']
 names += [line.split('==')[0] for line in Path('requirements.txt').read_text().splitlines()
           if line.lower().startswith('winrt')]
 for name in names:

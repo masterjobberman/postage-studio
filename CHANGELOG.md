@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Added a Templates tab with 15 editable designs and live previews.
+- Added a private local PDF/image library with multi-page selection and removal.
+- Shared paper sizes, PDF export and printing across labels and templates.
+- Added saved design edits, overflow checks and an optional QR code on thank-you inserts.
+- Added synthetic coverage for templates, imports, persistence, QR codes and printing.
+
 ## 1.2.1
 
 - Updated Pillow to 12.3.0 to address known dependency vulnerabilities.

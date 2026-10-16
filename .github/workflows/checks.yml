@@ -22,4 +22,5 @@ jobs:
       - run: python -m pip install -r requirements-build.txt
       - run: python verify_sizes.py
       - run: python verify_inputs.py
+      - run: python verify_templates.py
       - run: python -m pip_audit -r requirements.txt

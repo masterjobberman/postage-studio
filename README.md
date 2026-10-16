@@ -46,9 +46,21 @@ Match the printer's paper size to your selected size. Check the preview and barc
 
 Custom width and height can each be between 10 and 1,000 mm. Printer support varies. Preset names describe stock sizes and do not imply carrier or printer-manufacturer endorsement.
 
+## Templates
+
+![Templates tab with editable checklist and print preview](assets/templates-preview.png)
+
+Open the **Templates** tab, select a design from the list and edit its title, details and rows. The preview updates automatically. Use the shared label-size dropdown, then **Save template PDF** or **Print template**. Edits are remembered for each built-in design; **Reset this design** restores its defaults. Text that will not fit blocks printing until it is shortened.
+
+All 15 designs are included: daily checklist, weekly planner, shopping list, packing checklist, cleaning checklist, habit tracker, project task list, order packing checklist, stock count sheet, storage box label, food freezer label, plant care label, equipment maintenance log, parcel handling label and thank-you insert. The thank-you insert optionally generates a QR code from text or a website address you enter.
+
+Choose **Import my template** or drop a supported PDF/image onto the Templates tab. A private local copy appears under **My templates** and remains available after restarting, even if the original is moved. Select a page for multi-page imports. Imported artwork is not text-editable inside the app; edit its original file and import it again. Removing an import deletes only the library copy. Imports are limited to 50 MB and 50 pages; Word documents should be exported as PDFs first.
+
+Designs are fitted proportionally to the selected stock. Most are intended for 4 x 6 inches or larger; smaller stock can make text or QR codes difficult to read. Inspect the preview before printing.
+
 ## Privacy
 
-The application processes files locally and contains no upload, analytics, account sign-in or telemetry feature. Windows printing sends the selected label to your chosen printer, which may be a network printer. Exported PDFs remain where you save them. Custom sizes and the last selected size are saved in the local application-data folder under `Postage Studio/label-sizes.ini`.
+The application processes files locally and contains no upload, analytics, account sign-in or telemetry feature. Windows printing sends the selected label to your chosen printer, which may be a network printer. Exported PDFs remain where you save them. Custom sizes, template edits and the last selected size are saved in the local application-data folder under `Postage Studio/label-sizes.ini`. Imported templates are stored beside it in `Postage Studio/templates`. These personal files are not included in the source repository or release downloads.
 
 This repository contains no real customer labels, addresses, tracking numbers or private test documents. Automated tests generate synthetic artwork. Do not attach real postage labels to public issues; barcodes can contain personal information even when visible text is hidden.
 
@@ -68,6 +80,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
 .\.venv\Scripts\python.exe verify_sizes.py
 .\.venv\Scripts\python.exe verify_inputs.py
+.\.venv\Scripts\python.exe verify_templates.py
 .\.venv\Scripts\python.exe collect_licenses.py
 .\.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm "Postage Studio.spec"
 ```

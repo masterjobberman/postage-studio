@@ -5,10 +5,11 @@ from PySide6.QtCore import Qt, QRectF, QSizeF, Signal, QThread, QSettings, QStan
 from PySide6.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QPageSize, QPageLayout, QIcon
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QSplitter, QSpinBox, QFrame,
-    QComboBox, QDialog, QFormLayout, QLineEdit, QDoubleSpinBox, QDialogButtonBox)
+    QTabWidget, QComboBox, QDialog, QFormLayout, QLineEdit, QDoubleSpinBox, QDialogButtonBox)
 from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from label_engine import open_document, detect_label, make_label
 from label_sizes import SizeStore, dimensions_text, validate_size
+from template_panel import TemplatePanel
 
 def app_icon():
     return QIcon(str(Path(getattr(sys,'_MEIPASS',Path(__file__).parent))/'assets'/'postage-studio.ico'))
@@ -155,7 +156,7 @@ class LabelApp(QMainWindow):
             settings=QSettings(str(settings_dir/'label-sizes.ini'),QSettings.Format.IniFormat)
         self.settings=settings
         self.size_store=SizeStore(settings)
-        self.setWindowTitle('Postage Studio 1.2.1 • Label printing')
+        self.setWindowTitle('Postage Studio 1.3.0 • Label printing')
         self.setWindowIcon(app_icon())
         self.resize(1150, 820)
         self.setAcceptDrops(True)
@@ -235,6 +236,17 @@ class LabelApp(QMainWindow):
         self.populate_sizes(self.settings.value('selected_size','4x6'))
         self.size_combo.currentIndexChanged.connect(self.size_changed)
         self.enable_controls(False)
+        # Keep paper size controls above both workspaces.
+        layout.removeItem(sizebar)
+        layout.removeWidget(self.size_note)
+        outer=QWidget();outer_layout=QVBoxLayout(outer)
+        outer_layout.addLayout(sizebar);outer_layout.addWidget(self.size_note)
+        self.tabs=QTabWidget();outer_layout.addWidget(self.tabs,1)
+        self.takeCentralWidget()
+        self.tabs.addTab(root,'Postage labels')
+        self.templates=TemplatePanel(self,PageCanvas,page_image,Path(settings.fileName()).parent/'templates')
+        self.tabs.addTab(self.templates,'Templates')
+        self.setCentralWidget(outer)
 
     @property
     def selected_size(self):
@@ -262,6 +274,8 @@ class LabelApp(QMainWindow):
         self.size_note.setText(text)
         if self.doc and hasattr(self,'crop'):
             self.refresh()
+        if hasattr(self,'templates'):
+            self.templates.refresh()
 
     def add_custom_size(self):
         dialog=CustomSizeDialog(self)
@@ -355,6 +369,7 @@ class LabelApp(QMainWindow):
             self.status.setText('Finishing label detection. Please close the window in a moment.')
             event.ignore()
         else:
+            self.templates.dispose()
             event.accept()
 
     def full_page(self):
@@ -405,8 +420,10 @@ class LabelApp(QMainWindow):
     def print_label(self):
         if self.output is None:
             return
+        self.print_document(self.output,self.selected_size)
+
+    def print_document(self, document, stock):
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        stock=self.selected_size
         width,height=stock['width'],stock['height']
         printer.setPageSize(QPageSize(QSizeF(min(width,height),max(width,height)),QPageSize.Unit.Millimeter,stock['name'],QPageSize.SizeMatchPolicy.ExactMatch))
         printer.setPageOrientation(QPageLayout.Orientation.Landscape if width>height else QPageLayout.Orientation.Portrait)
@@ -424,11 +441,12 @@ class LabelApp(QMainWindow):
             if not painter.begin(printer):
                 raise ValueError('The printer could not start. Check its connection and settings.')
             dpi = min(printer.resolution(), 600)
-            image = page_image(self.output[0], dpi)
+            image = page_image(document[0], dpi)
             target = QRectF(0,0,printer.resolution()*width/25.4,printer.resolution()*height/25.4)
             painter.drawImage(target,image)
             painter.end()
-            self.status.setText('Label sent to '+printer.printerName()+'. Check the printed label before use.')
+            self.status.setText('Page sent to '+printer.printerName()+'. Check the printed page before use.')
+            return True
         except Exception as exc:
             if painter.isActive():
                 painter.end()
@@ -441,7 +459,10 @@ class LabelApp(QMainWindow):
     def dropEvent(self,event):
         urls = event.mimeData().urls()
         if urls and urls[0].isLocalFile():
-            self.open_file(urls[0].toLocalFile())
+            if self.tabs.currentWidget() is self.templates:
+                self.templates.import_file(urls[0].toLocalFile())
+            else:
+                self.open_file(urls[0].toLocalFile())
 
 
 if __name__ == '__main__':

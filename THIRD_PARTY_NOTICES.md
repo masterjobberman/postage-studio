@@ -11,6 +11,7 @@ Postage Studio includes or depends on the following projects. Their copyrights a
 | NumPy | BSD, additional bundled notices | https://github.com/numpy/numpy |
 | Pillow | HPND, additional bundled notices | https://github.com/python-pillow/Pillow |
 | PyWinRT | MIT | https://github.com/pywinrt/pywinrt |
+| qrcode / colorama | BSD | https://github.com/lincolnloop/python-qrcode and https://github.com/tartley/colorama |
 | PyInstaller | GPL with bootloader exception | https://github.com/pyinstaller/pyinstaller |
 
 Exact direct dependency versions are recorded in the requirements files. The application's original code and icon are licensed under AGPL v3. No proprietary carrier logo or real label is included. Windows OCR and printing are operating-system components, not redistributed with this application.
