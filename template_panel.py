@@ -12,6 +12,7 @@ from label_engine import make_label
 class TemplatePanel(QWidget):
     def __init__(self, owner, canvas_type, image_function, folder):
         super().__init__()
+        self.setAcceptDrops(True)
         self.owner=owner;self.image_function=image_function
         self.library=TemplateLibrary(folder)
         self.current=None;self.output=None;self.document=None;self.loading=False
@@ -45,7 +46,9 @@ class TemplatePanel(QWidget):
         self.print_button=QPushButton('Print template…');self.print_button.clicked.connect(self.print_template);bottom.addWidget(self.print_button)
         layout.addLayout(bottom)
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.setInterval(200);self.timer.timeout.connect(self.refresh)
-        for field in (self.title,self.subtitle,self.rows,self.qr):field.textChanged.connect(self.edited)
+        for field in (self.title,self.subtitle,self.rows,self.qr):
+            field.setAcceptDrops(False)
+            field.textChanged.connect(self.edited)
         self.page.valueChanged.connect(self.refresh)
         self.list.currentItemChanged.connect(self.select)
         self.populate()
@@ -139,6 +142,15 @@ class TemplatePanel(QWidget):
     def choose_import(self):
         path,_=QFileDialog.getOpenFileName(self,'Import a template','','PDF and images (*.pdf *.png *.jpg *.jpeg *.tif *.tiff *.bmp *.gif *.webp)')
         if path:self.import_file(path)
+
+    def dragEnterEvent(self,event):
+        if event.mimeData().hasUrls() and event.mimeData().urls()[0].isLocalFile():
+            event.acceptProposedAction()
+
+    def dropEvent(self,event):
+        if event.mimeData().hasUrls() and event.mimeData().urls()[0].isLocalFile():
+            self.import_file(event.mimeData().urls()[0].toLocalFile())
+            event.acceptProposedAction()
 
     def import_file(self, path):
         try:
