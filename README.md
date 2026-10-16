@@ -50,7 +50,7 @@ Custom width and height can each be between 10 and 1,000 mm. Printer support var
 
 ![Templates tab with editable checklist and print preview](assets/templates-preview.png)
 
-Open the **Templates** tab, select a design from the list and edit its title, details and rows. The preview updates automatically. Use the shared label-size dropdown, then **Save template PDF** or **Print template**. Edits are remembered for each built-in design; **Reset this design** restores its defaults. Text that will not fit blocks printing until it is shortened.
+Open the **Templates** tab, select a thumbnail from the gallery and edit its title, details and rows. Search by name or choose **My templates** to see your imports. The preview updates automatically. Use the shared label-size dropdown, then **Save template PDF** or **Print template**. Edits are remembered for each built-in design; **Reset this design** restores its defaults. Text that will not fit blocks printing until it is shortened.
 
 All 15 designs are included: daily checklist, weekly planner, shopping list, packing checklist, cleaning checklist, habit tracker, project task list, order packing checklist, stock count sheet, storage box label, food freezer label, plant care label, equipment maintenance log, parcel handling label and thank-you insert. The thank-you insert optionally generates a QR code from text or a website address you enter.
 

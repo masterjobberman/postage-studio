@@ -95,7 +95,24 @@ def run():
                 assert abs(printed[0].rect.width-window.selected_size['width']*72/25.4)<1
                 assert abs(printed[0].rect.height-window.selected_size['height']*72/25.4)<1
         window.size_combo.setCurrentIndex(0);panel.list.setCurrentRow(1)
+        panel.search.setText('no matching design 123')
+        assert panel.output is None and not panel.print_button.isEnabled()
+        panel.search.clear()
+        assert panel.output is not None
+        panel.filters.button(1).click()
+        assert panel.output is None
+        panel.filters.button(0).click()
+        assert panel.output is not None
+        panel.stock.setCurrentIndex(4)
+        assert window.size_combo.currentIndex()==4
+        window.size_combo.setCurrentIndex(0)
+        while panel.thumbnail_queue:panel.next_thumbnail()
         app.processEvents();window.grab().save(str(output/'templates-tab.png'))
+        window.resize(1060,720);app.processEvents()
+        window.grab().save(str(output/'templates-compact.png'))
+        assert panel.print_button.isVisible() and panel.print_button.width()>50
+        window.tabs.setCurrentIndex(0);app.processEvents()
+        window.grab().save(str(output/'labels-tab.png'))
         window.close()
         gallery.save(output/'all-templates.pdf')
     print('PASS: 15 designs, Unicode, QR, draft validation, persistence, imports, page selection and PDF printing.')

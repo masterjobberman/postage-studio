@@ -4,9 +4,10 @@ import json
 import pymupdf as fitz
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
-    QListWidget,QListWidgetItem,QLineEdit,QPlainTextEdit,QSplitter,QFileDialog,QSpinBox)
+    QListWidget,QListWidgetItem,QLineEdit,QPlainTextEdit,QSplitter,QFileDialog,QSpinBox,QScrollArea,QComboBox,QButtonGroup,QSizePolicy)
 from templates import DESIGNS,defaults,render_template,TemplateLibrary
 from label_engine import make_label
+from studio_theme import TemplateGallery
 
 
 class TemplatePanel(QWidget):
@@ -16,35 +17,71 @@ class TemplatePanel(QWidget):
         self.owner=owner;self.image_function=image_function
         self.library=TemplateLibrary(folder)
         self.current=None;self.output=None;self.document=None;self.loading=False
-        layout=QVBoxLayout(self)
-        intro=QLabel('Choose a design, edit its text, then preview and print. Imports are saved on this computer only.')
-        intro.setWordWrap(True);layout.addWidget(intro)
+        self.thumbnail_cache={};self.thumbnail_queue=[]
+        self.thumbnail_timer=QTimer(self);self.thumbnail_timer.setInterval(25)
+        self.thumbnail_timer.timeout.connect(self.next_thumbnail)
+        layout=QVBoxLayout(self);layout.setContentsMargins(0,8,0,0)
         split=QSplitter();layout.addWidget(split,1)
-        left=QWidget();col=QVBoxLayout(left)
-        self.list=QListWidget();self.list.setMinimumWidth(205);col.addWidget(self.list,1)
-        button=QPushButton('Import my template…');button.clicked.connect(self.choose_import);col.addWidget(button)
-        self.remove=QPushButton('Remove imported template');self.remove.clicked.connect(self.remove_import);col.addWidget(self.remove)
+        left=QWidget();left.setObjectName('glass');col=QVBoxLayout(left)
+        col.setContentsMargins(18,20,18,16);col.setSpacing(12)
+        heading=QLabel('Choose a template');heading.setObjectName('heading');col.addWidget(heading)
+        self.count=QLabel('15 designs');self.count.setObjectName('muted');col.addWidget(self.count)
+        self.search=QLineEdit();self.search.setPlaceholderText('Search templates…')
+        self.search.setClearButtonEnabled(True);self.search.setAccessibleName('Search templates');col.addWidget(self.search)
+        filters=QHBoxLayout();self.filters=QButtonGroup(self);self.filters.setExclusive(True)
+        for i,name in enumerate(['All templates','My templates']):
+            button=QPushButton(name);button.setObjectName('filter');button.setCheckable(True)
+            self.filters.addButton(button,i);filters.addWidget(button)
+        self.filters.button(0).setChecked(True);filters.addStretch();col.addLayout(filters)
+        self.list=TemplateGallery();col.addWidget(self.list,1)
+        self.empty=QLabel('');self.empty.setWordWrap(True);self.empty.setObjectName('muted');col.addWidget(self.empty)
+        button=QPushButton('Import template…');button.clicked.connect(self.choose_import)
+        button.setToolTip('Save a private copy of a PDF or image in My templates');col.addWidget(button)
         split.addWidget(left)
-        editor=QWidget();form=QVBoxLayout(editor)
+        right=QWidget();right.setObjectName('glass');right_col=QVBoxLayout(right)
+        right_col.setContentsMargins(18,20,18,16);right_col.setSpacing(12)
+        self.selection_heading=QLabel('Daily checklist');self.selection_heading.setObjectName('heading')
+        self.selection_heading.setWordWrap(True);right_col.addWidget(self.selection_heading)
+        content=QSplitter();right_col.addWidget(content,1)
+        self.preview=canvas_type();content.addWidget(self.preview)
+        editor=QWidget();form=QVBoxLayout(editor);form.setContentsMargins(8,0,6,0);form.setSpacing(9)
         form.addWidget(QLabel('Title'))
         self.title=QLineEdit();self.title.setMaxLength(100);form.addWidget(self.title)
-        form.addWidget(QLabel('Details / subtitle'))
+        form.addWidget(QLabel('Details'))
         self.subtitle=QLineEdit();self.subtitle.setMaxLength(150);form.addWidget(self.subtitle)
-        self.help=QLabel();self.help.setWordWrap(True);form.addWidget(self.help)
-        self.rows=QPlainTextEdit();form.addWidget(self.rows,1)
-        self.qr_label=QLabel('Optional QR code: website or text')
+        self.rows_label=QLabel('Tasks / content');form.addWidget(self.rows_label)
+        self.rows=QPlainTextEdit();self.rows.setMinimumHeight(130);self.rows.setMaximumHeight(230);form.addWidget(self.rows,1)
+        self.help=QLabel();self.help.setWordWrap(True);self.help.setObjectName('muted');form.addWidget(self.help)
+        self.qr_label=QLabel('QR code: website or text')
         form.addWidget(self.qr_label);self.qr=QLineEdit();self.qr.setMaxLength(300);form.addWidget(self.qr)
-        self.reset=QPushButton('Reset this design');self.reset.clicked.connect(self.reset_design);form.addWidget(self.reset)
-        self.page_label=QLabel('Imported page to print')
+        self.page_label=QLabel('Page to print')
         form.addWidget(self.page_label);self.page=QSpinBox();self.page.setMinimum(1);form.addWidget(self.page)
-        split.addWidget(editor)
-        self.preview=canvas_type();split.addWidget(self.preview);split.setSizes([220,300,430])
-        self.status=QLabel();self.status.setWordWrap(True);layout.addWidget(self.status)
-        bottom=QHBoxLayout()
-        self.note=QLabel('');self.note.setWordWrap(True);bottom.addWidget(self.note,1)
-        self.save_button=QPushButton('Save template PDF…');self.save_button.clicked.connect(self.save);bottom.addWidget(self.save_button)
-        self.print_button=QPushButton('Print template…');self.print_button.clicked.connect(self.print_template);bottom.addWidget(self.print_button)
-        layout.addLayout(bottom)
+        form.addWidget(QLabel('Label size'))
+        self.stock=QComboBox();self.stock.setAccessibleName('Template label size')
+        self.stock.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.stock.setMinimumContentsLength(10);form.addWidget(self.stock)
+        custom=QPushButton('Custom size…');custom.clicked.connect(owner.add_custom_size);form.addWidget(custom)
+        self.delete_size=QPushButton('Remove saved size');self.delete_size.clicked.connect(owner.remove_custom_size);form.addWidget(self.delete_size)
+        self.reset=QPushButton('Reset design');self.reset.clicked.connect(self.reset_design);form.addWidget(self.reset)
+        self.remove=QPushButton('Remove import');self.remove.clicked.connect(self.remove_import)
+        self.remove.setToolTip('Remove only the saved copy; your original file is kept');form.addWidget(self.remove)
+        form.addStretch()
+        scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(editor);scroll.setMinimumWidth(235)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.viewport().setAutoFillBackground(False);editor.setAutoFillBackground(False)
+        editor.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Preferred)
+        content.addWidget(scroll);content.setSizes([380,250]);content.setChildrenCollapsible(False)
+        self.status=QLabel();self.status.setWordWrap(True);self.status.setObjectName('muted');right_col.addWidget(self.status)
+        self.note=QLabel('');self.note.setWordWrap(True);self.note.setObjectName('muted');right_col.addWidget(self.note)
+        bottom=QHBoxLayout();bottom.addStretch()
+        self.save_button=QPushButton('Save PDF…');self.save_button.clicked.connect(self.save);bottom.addWidget(self.save_button)
+        self.print_button=QPushButton('Print…');self.print_button.setObjectName('primary')
+        self.print_button.clicked.connect(self.print_template);bottom.addWidget(self.print_button)
+        right_col.addLayout(bottom);split.addWidget(right)
+        split.setSizes([500,790]);split.setChildrenCollapsible(False)
+        self.stock.currentIndexChanged.connect(lambda index: owner.size_combo.setCurrentIndex(index) if index>=0 else None)
+        self.search.textChanged.connect(self.filter_items)
+        self.filters.idClicked.connect(self.filter_items)
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.setInterval(200);self.timer.timeout.connect(self.refresh)
         for field in (self.title,self.subtitle,self.rows,self.qr):
             field.setAcceptDrops(False)
@@ -54,6 +91,7 @@ class TemplatePanel(QWidget):
         self.populate()
 
     def populate(self, selected=None):
+        self.thumbnail_timer.stop();self.thumbnail_queue=[]
         self.list.blockSignals(True);self.list.clear()
         chosen=None
         for heading,items in [('BUILT-IN DESIGNS',DESIGNS),('MY TEMPLATES',self.library.items())]:
@@ -63,6 +101,53 @@ class TemplatePanel(QWidget):
                 if row['id']==selected or chosen is None:chosen=item
         self.list.blockSignals(False)
         self.list.setCurrentItem(chosen)
+        self.filter_items()
+        self.thumbnail_queue=[self.list.item(i) for i in range(self.list.count()) if self.list.item(i).data(Qt.ItemDataRole.UserRole)]
+        self.thumbnail_timer.start()
+
+    def sync_stock(self):
+        self.stock.blockSignals(True);self.stock.clear()
+        for i in range(self.owner.size_combo.count()):
+            self.stock.addItem(self.owner.size_combo.itemText(i))
+        self.stock.setCurrentIndex(self.owner.size_combo.currentIndex());self.stock.blockSignals(False)
+        self.delete_size.setVisible(bool(self.owner.selected_size.get('custom')))
+
+    def filter_items(self,*args):
+        query=self.search.text().strip().casefold();visible=[]
+        for i in range(self.list.count()):
+            item=self.list.item(i);row=item.data(Qt.ItemDataRole.UserRole)
+            match=bool(row and query in row['name'].casefold() and
+                       (self.filters.checkedId()==0 or row.get('custom')))
+            item.setHidden(not match)
+            if match:visible.append(item)
+        self.count.setText(f"{len(visible)} templates" if self.filters.checkedId()==0 else f"{len(visible)} saved imports")
+        self.empty.setText('No matching templates. Try another search.' if query else 'Import a PDF or image to start your own collection.')
+        self.empty.setVisible(not visible)
+        if visible and (not self.list.currentItem() or self.list.currentItem().isHidden()):
+            self.list.setCurrentItem(visible[0])
+        elif visible and self.current is None:
+            self.select(self.list.currentItem())
+        elif not visible:
+            self.current=None;self.clear_output('Choose a template to preview and print.')
+            self.selection_heading.setText('Choose a template')
+            for widget in (self.title,self.subtitle,self.rows,self.reset,self.remove):widget.setEnabled(False)
+
+    def next_thumbnail(self):
+        if not self.thumbnail_queue:
+            self.thumbnail_timer.stop();return
+        item=self.thumbnail_queue.pop(0);row=item.data(Qt.ItemDataRole.UserRole)
+        try:
+            if row['id'] not in self.thumbnail_cache:
+                if row.get('custom'):
+                    with fitz.open(stream=self.library.path(row['id']).read_bytes(),filetype='pdf') as doc:
+                        image=self.image_function(doc[0],60)
+                else:
+                    with render_template(row,defaults(row),101.6,152.4) as doc:
+                        image=self.image_function(doc[0],60)
+                self.thumbnail_cache[row['id']]=image.scaled(240,320,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation)
+            item.setData(Qt.ItemDataRole.DecorationRole,self.thumbnail_cache[row['id']])
+        except Exception:
+            pass  # Selecting an unreadable import presents the full error.
 
     def select(self, item, previous=None):
         self.timer.stop()
@@ -70,6 +155,9 @@ class TemplatePanel(QWidget):
         if not self.current:return
         if self.document:self.document.close();self.document=None
         custom=self.current.get('custom',False)
+        self.selection_heading.setText(self.current['name'])
+        self.remove.setVisible(custom);self.reset.setVisible(not custom)
+        for field in (self.title,self.subtitle,self.rows,self.rows_label):field.setVisible(not custom)
         self.loading=True
         try:
             values=defaults(self.current) if not custom else dict(title=self.current['name'],subtitle='',rows='',qr='')
@@ -119,6 +207,7 @@ class TemplatePanel(QWidget):
         if self.loading or not self.current:return
         self.timer.stop()
         try:
+            self.sync_stock()
             size=self.owner.selected_size
             if self.current.get('custom'):
                 if self.document is None:raise ValueError('Import could not be opened. Remove it and import it again.')
@@ -154,7 +243,7 @@ class TemplatePanel(QWidget):
 
     def import_file(self, path):
         try:
-            row=self.library.add(path);self.populate(row['id'])
+            row=self.library.add(path);self.search.clear();self.filters.button(1).setChecked(True);self.populate(row['id'])
         except Exception as exc:self.owner.error(exc)
 
     def remove_import(self):
@@ -162,7 +251,7 @@ class TemplatePanel(QWidget):
         try:
             if self.document:self.document.close();self.document=None
             self.clear_output('Removing imported template…')
-            self.library.remove(self.current['id']);self.populate()
+            self.library.remove(self.current['id']);self.filters.button(0).setChecked(True);self.search.clear();self.populate()
         except Exception as exc:self.owner.error(exc)
 
     def save(self):
@@ -183,6 +272,6 @@ class TemplatePanel(QWidget):
             if self.owner.print_document(self.output,self.owner.selected_size):self.status.setText('Template sent to the selected printer.')
 
     def dispose(self):
-        self.timer.stop()
+        self.timer.stop();self.thumbnail_timer.stop();self.thumbnail_queue=[]
         if self.output:self.output.close();self.output=None
         if self.document:self.document.close();self.document=None

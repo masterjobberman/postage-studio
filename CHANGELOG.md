@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Introduced a visual template gallery with real thumbnails, search and an imported-template filter.
+- Applied a subtle frosted interface with pale blue, mint and lavender accents.
+- Added clearer navigation, a larger print preview and an adjacent editing panel.
+- Kept print/export actions visible while the editor scrolls on smaller windows.
+- Preserved local imports, saved edits, sizes and printing behaviour.
+
 ## 1.3.0
 
 - Added a Templates tab with 15 editable designs and live previews.

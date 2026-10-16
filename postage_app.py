@@ -5,11 +5,12 @@ from PySide6.QtCore import Qt, QRectF, QSizeF, Signal, QThread, QSettings, QStan
 from PySide6.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QPageSize, QPageLayout, QIcon
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QPushButton,
     QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox, QSplitter, QSpinBox, QFrame,
-    QTabWidget, QComboBox, QDialog, QFormLayout, QLineEdit, QDoubleSpinBox, QDialogButtonBox)
+    QButtonGroup, QTabWidget, QComboBox, QDialog, QFormLayout, QLineEdit, QDoubleSpinBox, QDialogButtonBox)
 from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from label_engine import open_document, detect_label, make_label
 from label_sizes import SizeStore, dimensions_text, validate_size
 from template_panel import TemplatePanel
+from studio_theme import StudioBackground, STYLE
 
 def app_icon():
     return QIcon(str(Path(getattr(sys,'_MEIPASS',Path(__file__).parent))/'assets'/'postage-studio.ico'))
@@ -107,7 +108,7 @@ class PageCanvas(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor('#e9eef3'))
+        painter.fillRect(self.rect(), QColor(241,245,250,100))
         if self.image is None:
             painter.setPen(QColor('#64748b'))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, 'Drop a PDF or image here' if self.editable else 'Your label will appear here')
@@ -156,15 +157,16 @@ class LabelApp(QMainWindow):
             settings=QSettings(str(settings_dir/'label-sizes.ini'),QSettings.Format.IniFormat)
         self.settings=settings
         self.size_store=SizeStore(settings)
-        self.setWindowTitle('Postage Studio 1.3.0 • Label printing')
+        self.setWindowTitle('Postage Studio 1.4.0 • Label printing')
         self.setWindowIcon(app_icon())
-        self.resize(1150, 820)
+        self.resize(1400, 900)
+        self.setMinimumSize(1060,720)
         self.setAcceptDrops(True)
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
         layout.setContentsMargins(28, 24, 28, 20)
-        title = QLabel('Postage Studio')
+        title = QLabel('Postage labels')
         title.setStyleSheet('font-size:28px; font-weight:700; color:#102d3a')
         layout.addWidget(title)
         layout.addWidget(QLabel('A page in. A parcel-ready label out.   •   Everything stays on this computer.'))
@@ -228,25 +230,45 @@ class LabelApp(QMainWindow):
         self.save_button.clicked.connect(self.save)
         bottom.addWidget(self.save_button)
         self.print_button = QPushButton('Print label…')
-        self.print_button.setStyleSheet('background:#087e73;color:white;font-weight:700')
+        self.print_button.setObjectName('primary')
         self.print_button.clicked.connect(self.print_label)
         bottom.addWidget(self.print_button)
         layout.addLayout(bottom)
-        self.setStyleSheet('QMainWindow{background:#f8fafc} QLabel{color:#334155;font-size:13px} QPushButton{padding:10px 16px;border:1px solid #cbd5e1;border-radius:6px;background:white;font-size:13px} QPushButton:disabled{color:#a0aab6;background:#f1f5f9} QSpinBox,QComboBox,QDoubleSpinBox,QLineEdit{padding:8px}')
+        self.setStyleSheet(STYLE)
         self.populate_sizes(self.settings.value('selected_size','4x6'))
         self.size_combo.currentIndexChanged.connect(self.size_changed)
         self.enable_controls(False)
         # Keep paper size controls above both workspaces.
         layout.removeItem(sizebar)
         layout.removeWidget(self.size_note)
-        outer=QWidget();outer_layout=QVBoxLayout(outer)
-        outer_layout.addLayout(sizebar);outer_layout.addWidget(self.size_note)
+        outer=StudioBackground();outer_layout=QVBoxLayout(outer)
+        outer_layout.setContentsMargins(14,12,14,12);outer_layout.setSpacing(10)
+        header=QWidget();header.setObjectName('header');header_row=QHBoxLayout(header)
+        logo=QLabel();logo.setPixmap(app_icon().pixmap(32,32));header_row.addWidget(logo)
+        brand=QLabel('Postage Studio');brand.setObjectName('brand');header_row.addWidget(brand)
+        header_row.addSpacing(32);self.navigation=QButtonGroup(self);self.navigation.setExclusive(True)
+        for i,name in enumerate(['Postage labels','Templates']):
+            button=QPushButton(name);button.setObjectName('nav');button.setCheckable(True)
+            self.navigation.addButton(button,i);header_row.addWidget(button)
+        header_row.addStretch();local=QLabel('Private by design · Files stay local');local.setObjectName('muted');header_row.addWidget(local)
+        outer_layout.addWidget(header)
+        self.stock_controls=QWidget();stock_layout=QVBoxLayout(self.stock_controls)
+        stock_layout.addLayout(sizebar);stock_layout.addWidget(self.size_note)
+        outer_layout.addWidget(self.stock_controls)
         self.tabs=QTabWidget();outer_layout.addWidget(self.tabs,1)
         self.takeCentralWidget()
         self.tabs.addTab(root,'Postage labels')
         self.templates=TemplatePanel(self,PageCanvas,page_image,Path(settings.fileName()).parent/'templates')
         self.tabs.addTab(self.templates,'Templates')
         self.setCentralWidget(outer)
+        self.tabs.tabBar().hide()
+        self.navigation.idClicked.connect(self.tabs.setCurrentIndex)
+        self.tabs.currentChanged.connect(self.workspace_changed)
+        self.workspace_changed(0)
+
+    def workspace_changed(self,index):
+        self.navigation.button(index).setChecked(True)
+        self.stock_controls.setVisible(index==0)
 
     @property
     def selected_size(self):
