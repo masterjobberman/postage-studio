@@ -23,4 +23,5 @@ jobs:
       - run: python verify_sizes.py
       - run: python verify_inputs.py
       - run: python verify_templates.py
+      - run: python verify_qr.py
       - run: python -m pip_audit -r requirements.txt

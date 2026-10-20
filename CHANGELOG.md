@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0
+
+- Capture a selected display once and crop a label or QR codes, entirely locally.
+- New QR labels tab with repeated file/screen imports, a print queue, removal and duplication.
+- Full-page, quarter-page and three-across landscape layouts on A4, Letter or saved label sizes.
+- Automatic pagination, decoded data captions, PDF export and printing of all pages.
+- Preserve raw decoded QR bytes; block output when dense codes or captions cannot fit.
+- Add synthetic regressions for QR decoding, layouts, queue operations, crop selection and multi-page printing.
+
 ## 1.4.0
 
 - Introduced a visual template gallery with real thumbnails, search and an imported-template filter.

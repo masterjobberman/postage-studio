@@ -30,6 +30,33 @@ Match the printer's paper size to your selected size. Check the preview and barc
 - Offline OCR to help orient image labels when Windows OCR language support is available.
 - Saved custom sizes with millimetre/inch input and a reusable dropdown entry.
 - A dedicated application icon.
+- One-shot screen capture with display choice and a crop selection.
+- QR detection, a reusable print queue, data captions and automatic multi-page sheets.
+
+## Screen capture and QR sheets
+
+Choose **Capture screen** in Postage labels to select a visible label from your display.
+The app briefly hides itself, captures the chosen monitor once, and lets you select
+the area to use. Cancel discards the capture. Protected windows may not capture.
+Captures stay in memory; the app does not continuously watch or upload your screen.
+
+Open **QR labels**, then **Capture screen** or **Add files**. Every readable QR code
+in the selected area or supported file is added to the queue. Repeat to add more,
+remove unwanted entries or duplicate an entry. QR contents are shown as plain text;
+links are never opened automatically. Codes are regenerated from decoded bytes,
+with their decoded data printed underneath.
+
+Choose **Full page** (one code), **Quarter page** (a 2×2 grid) or
+**Third page landscape** (three codes across). A4 is the default; US Letter,
+existing label stock and custom sizes are also available. Extra pages are created
+automatically. Use the page selector to inspect every sheet before saving or printing.
+Very dense codes or captions that cannot fit legibly block output until you choose
+larger paper or fewer codes per page. Unreadable codes are not added; zoom in and
+capture again if needed. The QR queue is session-only and clears when the app closes.
+
+QR output preserves decoded data, not the source code's decorative styling.
+Screen images have the resolution of the display; original PDFs are preferable
+for postage when available. Always scan a printed sample to check readability.
 
 ### Included sizes
 

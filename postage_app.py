@@ -11,6 +11,8 @@ from label_engine import open_document, detect_label, make_label
 from label_sizes import SizeStore, dimensions_text, validate_size
 from template_panel import TemplatePanel
 from studio_theme import StudioBackground, STYLE
+from qr_panel import QRPanel
+from screen_capture import capture_screen, image_png
 
 def app_icon():
     return QIcon(str(Path(getattr(sys,'_MEIPASS',Path(__file__).parent))/'assets'/'postage-studio.ico'))
@@ -157,7 +159,7 @@ class LabelApp(QMainWindow):
             settings=QSettings(str(settings_dir/'label-sizes.ini'),QSettings.Format.IniFormat)
         self.settings=settings
         self.size_store=SizeStore(settings)
-        self.setWindowTitle('Postage Studio 1.4.0 • Label printing')
+        self.setWindowTitle('Postage Studio 1.5.0 • Label printing')
         self.setWindowIcon(app_icon())
         self.resize(1400, 900)
         self.setMinimumSize(1060,720)
@@ -174,6 +176,9 @@ class LabelApp(QMainWindow):
         self.open_button = QPushButton('Open file…')
         self.open_button.clicked.connect(self.choose)
         bar.addWidget(self.open_button)
+        self.capture_button = QPushButton('Capture screen…')
+        self.capture_button.clicked.connect(self.capture_label)
+        bar.addWidget(self.capture_button)
         bar.addStretch()
         bar.addWidget(QLabel('Page'))
         self.page_number = QSpinBox()
@@ -247,7 +252,7 @@ class LabelApp(QMainWindow):
         logo=QLabel();logo.setPixmap(app_icon().pixmap(32,32));header_row.addWidget(logo)
         brand=QLabel('Postage Studio');brand.setObjectName('brand');header_row.addWidget(brand)
         header_row.addSpacing(32);self.navigation=QButtonGroup(self);self.navigation.setExclusive(True)
-        for i,name in enumerate(['Postage labels','Templates']):
+        for i,name in enumerate(['Postage labels','Templates','QR labels']):
             button=QPushButton(name);button.setObjectName('nav');button.setCheckable(True)
             self.navigation.addButton(button,i);header_row.addWidget(button)
         header_row.addStretch();local=QLabel('Private by design · Files stay local');local.setObjectName('muted');header_row.addWidget(local)
@@ -260,6 +265,8 @@ class LabelApp(QMainWindow):
         self.tabs.addTab(root,'Postage labels')
         self.templates=TemplatePanel(self,PageCanvas,page_image,Path(settings.fileName()).parent/'templates')
         self.tabs.addTab(self.templates,'Templates')
+        self.qr = QRPanel(self, PageCanvas, page_image)
+        self.tabs.addTab(self.qr, 'QR labels')
         self.setCentralWidget(outer)
         self.tabs.tabBar().hide()
         self.navigation.idClicked.connect(self.tabs.setCurrentIndex)
@@ -298,6 +305,8 @@ class LabelApp(QMainWindow):
             self.refresh()
         if hasattr(self,'templates'):
             self.templates.refresh()
+        if hasattr(self,'qr'):
+            self.qr.sync_sizes()
 
     def add_custom_size(self):
         dialog=CustomSizeDialog(self)
@@ -346,6 +355,25 @@ class LabelApp(QMainWindow):
         except Exception as exc:
             self.error(exc)
 
+    def capture_label(self):
+        if self.worker and self.worker.isRunning():
+            return
+        capture_screen(self, PageCanvas, self.open_capture)
+
+    def open_capture(self, image):
+        doc = fitz.open()
+        page = doc.new_page(width=image.width()*.24, height=image.height()*.24)
+        page.insert_image(page.rect, stream=image_png(image))
+        if self.doc is not None:
+            self.doc.close()
+        self.doc, self.path = doc, Path('Screen capture.pdf')
+        self.filename.setText('Screen capture · held in memory')
+        self.page_number.blockSignals(True)
+        self.page_number.setMaximum(1); self.page_number.setValue(1)
+        self.page_number.blockSignals(False)
+        self.enable_controls(True)
+        self.load_page()
+
     def load_page(self):
         if self.doc:
             self.page = self.doc[self.page_number.value()-1]
@@ -359,6 +387,7 @@ class LabelApp(QMainWindow):
             return
         self.enable_controls(False)
         self.open_button.setEnabled(False)
+        self.capture_button.setEnabled(False)
         self.size_combo.setEnabled(False)
         self.add_size_button.setEnabled(False)
         self.remove_size_button.setEnabled(False)
@@ -382,16 +411,21 @@ class LabelApp(QMainWindow):
     def detection_finished(self):
         self.enable_controls(True)
         self.open_button.setEnabled(True)
+        self.capture_button.setEnabled(True)
         self.size_combo.setEnabled(True)
         self.add_size_button.setEnabled(True)
         self.remove_size_button.setEnabled(bool(self.selected_size.get('custom')))
 
     def closeEvent(self, event):
-        if self.worker and self.worker.isRunning():
-            self.status.setText('Finishing label detection. Please close the window in a moment.')
+        if ((self.worker and self.worker.isRunning()) or
+            (self.qr.worker and self.qr.worker.isRunning()) or
+            getattr(self, '_capture_pending', False)):
+            self.status.setText('Finishing the current scan. Please close the window in a moment.')
+            self.qr.status.setText('Finishing the current scan. Please close the window in a moment.')
             event.ignore()
         else:
             self.templates.dispose()
+            self.qr.dispose()
             event.accept()
 
     def full_page(self):
@@ -458,16 +492,29 @@ class LabelApp(QMainWindow):
         if abs(size.width()-width)>.8 or abs(size.height()-height)>.8:
             QMessageBox.warning(self,'Check printer paper size','Select '+dimensions_text(stock)+' (width × height) in printer properties. The driver currently reports '+f'{size.width():g} × {size.height():g} mm.')
             return
+        first, last = 0, len(document)
+        if printer.printRange() == QPrinter.PrintRange.PageRange:
+            first = max(0, printer.fromPage()-1)
+            last = min(len(document), printer.toPage())
+        numbers = list(range(first, last))
+        if not numbers:
+            self.error('Choose a page range within this document.')
+            return
+        if printer.pageOrder() == QPrinter.PageOrder.LastPageFirst:
+            numbers.reverse()
         painter = QPainter()
         try:
             if not painter.begin(printer):
                 raise ValueError('The printer could not start. Check its connection and settings.')
             dpi = min(printer.resolution(), 600)
-            image = page_image(document[0], dpi)
             target = QRectF(0,0,printer.resolution()*width/25.4,printer.resolution()*height/25.4)
-            painter.drawImage(target,image)
+            for count, number in enumerate(numbers):
+                if count and not printer.newPage():
+                    raise ValueError('The printer could not start the next page.')
+                image = page_image(document[number], dpi)
+                painter.drawImage(target,image)
             painter.end()
-            self.status.setText('Page sent to '+printer.printerName()+'. Check the printed page before use.')
+            self.status.setText(f'{len(numbers)} page(s) sent to '+printer.printerName()+'. Check the printed pages before use.')
             return True
         except Exception as exc:
             if painter.isActive():
@@ -483,6 +530,8 @@ class LabelApp(QMainWindow):
         if urls and urls[0].isLocalFile():
             if self.tabs.currentWidget() is self.templates:
                 self.templates.import_file(urls[0].toLocalFile())
+            elif self.tabs.currentWidget() is self.qr:
+                self.qr.add_files([url.toLocalFile() for url in urls if url.isLocalFile()])
             else:
                 self.open_file(urls[0].toLocalFile())
 
