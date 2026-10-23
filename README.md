@@ -73,6 +73,26 @@ for postage when available. Always scan a printed sample to check readability.
 
 Custom width and height can each be between 10 and 1,000 mm. Printer support varies. Preset names describe stock sizes and do not imply carrier or printer-manufacturer endorsement.
 
+## Label designer
+
+Open **Designer** and type into the first text box. Use **Add text**, **Add QR code**
+or **Add barcode** for more items. Select an item in the list or on the label,
+then drag it to position it. The controls also let you set its exact left/top
+position, width and height in millimetres. Text supports multiple lines,
+font size, bold and alignment. Code data captions can be switched on or off.
+
+Barcodes use Code 128 with printable ASCII text. QR codes support Unicode text
+and website addresses. Codes are generated locally; URLs are not opened.
+Choose an existing label size or add a custom size, inspect the preview,
+then save a PDF or print. The blue selection border is editor-only.
+Items outside the label, overflowing text and codes too dense for their size
+block saving/printing. Avoid overlapping artwork with codes and scan a printed
+sample before use. Designer drafts remain in this session only; save a PDF
+before closing if you want to keep the label. Exported PDFs can be reopened
+as postage artwork, but individual designer objects are not retained in them.
+
+![Label designer with text, QR code and barcode](assets/designer-preview.png)
+
 ## Templates
 
 ![Templates tab with editable checklist and print preview](assets/templates-preview.png)

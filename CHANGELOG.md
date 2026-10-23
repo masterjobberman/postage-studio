@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- Add a freeform label designer with editable text, QR codes and Code 128 barcodes.
+- Drag items on the preview and set their exact positions and dimensions.
+- Text size, bold, alignment, optional code captions, duplicate and remove controls.
+- Validate text fit, page bounds and barcode density before PDF export or printing.
+- Add regressions for canvas dragging, generated code decoding and label printing.
+
 ## 1.5.0
 
 - Capture a selected display once and crop a label or QR codes, entirely locally.

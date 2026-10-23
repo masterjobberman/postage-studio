@@ -12,6 +12,7 @@ from label_sizes import SizeStore, dimensions_text, validate_size
 from template_panel import TemplatePanel
 from studio_theme import StudioBackground, STYLE
 from qr_panel import QRPanel
+from designer_panel import DesignerPanel
 from screen_capture import capture_screen, image_png
 
 def app_icon():
@@ -159,7 +160,7 @@ class LabelApp(QMainWindow):
             settings=QSettings(str(settings_dir/'label-sizes.ini'),QSettings.Format.IniFormat)
         self.settings=settings
         self.size_store=SizeStore(settings)
-        self.setWindowTitle('Postage Studio 1.5.0 • Label printing')
+        self.setWindowTitle('Postage Studio 1.6.0 • Label printing')
         self.setWindowIcon(app_icon())
         self.resize(1400, 900)
         self.setMinimumSize(1060,720)
@@ -252,7 +253,7 @@ class LabelApp(QMainWindow):
         logo=QLabel();logo.setPixmap(app_icon().pixmap(32,32));header_row.addWidget(logo)
         brand=QLabel('Postage Studio');brand.setObjectName('brand');header_row.addWidget(brand)
         header_row.addSpacing(32);self.navigation=QButtonGroup(self);self.navigation.setExclusive(True)
-        for i,name in enumerate(['Postage labels','Templates','QR labels']):
+        for i,name in enumerate(['Postage labels','Templates','QR labels','Designer']):
             button=QPushButton(name);button.setObjectName('nav');button.setCheckable(True)
             self.navigation.addButton(button,i);header_row.addWidget(button)
         header_row.addStretch();local=QLabel('Private by design · Files stay local');local.setObjectName('muted');header_row.addWidget(local)
@@ -267,6 +268,8 @@ class LabelApp(QMainWindow):
         self.tabs.addTab(self.templates,'Templates')
         self.qr = QRPanel(self, PageCanvas, page_image)
         self.tabs.addTab(self.qr, 'QR labels')
+        self.designer = DesignerPanel(self, page_image)
+        self.tabs.addTab(self.designer, 'Designer')
         self.setCentralWidget(outer)
         self.tabs.tabBar().hide()
         self.navigation.idClicked.connect(self.tabs.setCurrentIndex)
@@ -307,6 +310,8 @@ class LabelApp(QMainWindow):
             self.templates.refresh()
         if hasattr(self,'qr'):
             self.qr.sync_sizes()
+        if hasattr(self,'designer'):
+            self.designer.sync_sizes()
 
     def add_custom_size(self):
         dialog=CustomSizeDialog(self)
@@ -426,6 +431,7 @@ class LabelApp(QMainWindow):
         else:
             self.templates.dispose()
             self.qr.dispose()
+            self.designer.dispose()
             event.accept()
 
     def full_page(self):
