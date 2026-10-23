@@ -2,6 +2,8 @@
 
 ## 1.6.0
 
+- Update Pillow to 13.0.0 to address newly reported image-library vulnerabilities.
+
 - Add a freeform label designer with editable text, QR codes and Code 128 barcodes.
 - Drag items on the preview and set their exact positions and dimensions.
 - Text size, bold, alignment, optional code captions, duplicate and remove controls.
